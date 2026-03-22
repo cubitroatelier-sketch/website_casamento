@@ -123,6 +123,37 @@ Recomendação:
 - `GET /estatisticas`
 - `DELETE /submissoes`
 
+## Arranque rapido local
+
+Se quiseres preparar tudo e arrancar com scripts:
+
+```bash
+./setup-local.sh
+./start-local.sh
+```
+
+O `start-local.sh` arranca:
+- backend em `http://127.0.0.1:8000`
+- frontend em `http://127.0.0.1:5173`
+
+Importante:
+- o script nao altera o codigo do frontend
+- o frontend continua a ter como fallback o backend remoto
+- em modo local, o script injeta `VITE_API_BASE_URL=http://127.0.0.1:8000` no arranque do Vite
+- a janela do terminal onde corres `./start-local.sh` tem de ficar aberta; se a fechares ou fizeres `Ctrl+C`, os dois servidores param
+
+Credenciais locais por defeito do admin:
+
+```bash
+LocalAdmin-2026
+```
+
+Podes alterar estes valores ao arrancar:
+
+```bash
+ADMIN_PASSWORD='outra-password' BACKEND_PORT=8001 FRONTEND_PORT=5174 ./start-local.sh
+```
+
 ## Como correr o frontend localmente
 
 Pré-requisitos:
@@ -154,7 +185,17 @@ Por defeito, o frontend usa este backend:
 https://backend-7ej1.onrender.com
 ```
 
-Se quiseres apontar para outro backend, define:
+Isto vem do fallback em `src/app/lib/api.ts`. Ou seja:
+- se correres apenas `npm run dev`, o frontend continua a falar com o backend remoto
+- se definires `VITE_API_BASE_URL`, o frontend passa a usar esse backend sem precisares de mudar o codigo
+
+Exemplo para apontar o frontend ao backend local:
+
+```bash
+VITE_API_BASE_URL=http://127.0.0.1:8000 npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+Exemplo genérico para outro backend:
 
 ```bash
 VITE_API_BASE_URL=https://o-teu-backend.com
@@ -184,6 +225,23 @@ Arranque local:
 
 ```bash
 uvicorn main:api --host 0.0.0.0 --port 8000 --reload
+```
+
+Se quiseres correr backend e frontend manualmente, sem scripts:
+
+Terminal 1:
+
+```bash
+export ADMIN_PASSWORD='uma-password-forte'
+export ADMIN_TOKEN_SECRET='um-segredo-longo-e-aleatorio'
+export ADMIN_TOKEN_TTL_SECONDS='28800'
+uvicorn main:api --host 127.0.0.1 --port 8000 --reload
+```
+
+Terminal 2:
+
+```bash
+VITE_API_BASE_URL=http://127.0.0.1:8000 npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
 ## Base de dados

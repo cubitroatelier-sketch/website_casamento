@@ -348,9 +348,6 @@ export function WeddingRSVP() {
               <div className="text-sm text-[#cf6441] text-center" style={{ fontFamily: 'Cormorant Infant, serif', fontWeight: '400' }}>
                 Às 15h30
               </div>
-              <div className="mt-2 text-xs uppercase tracking-[0.2em] text-[#8b9c8e] group-hover:text-[#cf6441] transition-colors" style={{ fontFamily: 'Cormorant Infant, serif' }}>
-                Adicionar ao calendário
-              </div>
             </div>
           </button>
         </div>

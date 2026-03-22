@@ -5,6 +5,7 @@ import {
   LogOut,
   Mail,
   Phone,
+  RefreshCw,
   Trash2,
   Users,
   XCircle,
@@ -49,6 +50,7 @@ export function AdminPanel({ authToken, onBackClick }: AdminPanelProps) {
   const [numSubmissoes, setNumSubmissoes] = useState(0);
   const [pessoasNv, setNumPessoasNv] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const adminHeaders = getAdminAuthorizationHeader(authToken);
 
@@ -67,6 +69,7 @@ export function AdminPanel({ authToken, onBackClick }: AdminPanelProps) {
 
   const carregarTudo = async () => {
     try {
+      setIsRefreshing(true);
       setErrorMessage('');
       const [lista, stats] = await Promise.all([
         fetch(API_BASE_URL + '/submissoes', {
@@ -84,6 +87,8 @@ export function AdminPanel({ authToken, onBackClick }: AdminPanelProps) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar dados.';
       setErrorMessage(message);
       console.error('Erro ao carregar dados:', err);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -171,10 +176,16 @@ export function AdminPanel({ authToken, onBackClick }: AdminPanelProps) {
   return (
     <div className="min-h-screen p-4 md:p-8 bg-[#f5f1ed]">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <Button variant="ghost" onClick={onBackClick}>
-            <LogOut className="w-4 h-4 mr-2" /> Sair
-          </Button>
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={onBackClick}>
+              <LogOut className="w-4 h-4 mr-2" /> Sair
+            </Button>
+            <Button variant="outline" onClick={() => void carregarTudo()} disabled={isRefreshing}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'A atualizar...' : 'Atualizar'}
+            </Button>
+          </div>
           <Badge variant="outline" className="text-sm">
             Sessão Administrativa
           </Badge>
