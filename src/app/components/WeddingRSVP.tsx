@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Send, CheckCircle, Heart, MapPin, Calendar, Lock, Gift, Phone } from 'lucide-react';
+import { Send, CheckCircle, Heart, MapPin, Calendar, Lock, Gift, Phone, CalendarPlus, Download, ExternalLink, X } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
@@ -18,6 +18,7 @@ export function WeddingRSVP() {
   const submitLockRef = useRef(false);
   const [showIban, setShowIban] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
+  const [showCalendarOptions, setShowCalendarOptions] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     adultNames: [''],
@@ -46,6 +47,17 @@ export function WeddingRSVP() {
 
   const handleAdminAccess = () => {
     window.dispatchEvent(new CustomEvent('openAdminLogin'));
+  };
+
+  const googleCalendarUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' +
+    encodeURIComponent('Casamento Catarina & Diogo') +
+    '&dates=20261002T143000Z/20261002T223000Z' +
+    '&location=' + encodeURIComponent('Quinta da Eira, Bustelo, Penafiel, Porto') +
+    '&details=' + encodeURIComponent('Cerimonia e rececao do casamento de Catarina e Diogo. Inicio as 15h30.');
+
+  const handleGoogleCalendar = () => {
+    window.open(googleCalendarUrl, '_blank', 'noopener,noreferrer');
+    setShowCalendarOptions(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -253,18 +265,26 @@ export function WeddingRSVP() {
             </div>
           </a>
 
-          <div className="relative aspect-square">
+          <button
+            type="button"
+            onClick={() => setShowCalendarOptions(true)}
+            className="relative aspect-square cursor-pointer group transition-transform hover:scale-105 duration-300"
+            aria-label="Adicionar o casamento ao calendário"
+          >
             <img src={cardFrame} alt="Card frame" className="absolute inset-0 w-full h-full object-contain" />
             <div className="relative z-10 h-full flex flex-col items-center justify-center px-4 ">
-              <Calendar className="w-6 h-6 text-[#8b9c8e] mx-auto mb-3" />
+              <Calendar className="w-6 h-6 text-[#8b9c8e] mx-auto mb-3 group-hover:text-[#cf6441] transition-colors" />
               <div className="text-2xl mb-1 text-[#cf6441] text-center leading-tight" style={{ fontFamily: 'Cormorant Infant, serif', fontWeight: '500' }}>
                 2 DE<br/>OUTUBRO <br/>DE 2026
               </div>
               <div className="text-sm text-[#cf6441] text-center" style={{ fontFamily: 'Cormorant Infant, serif', fontWeight: '400' }}>
                 Às 15h30
               </div>
+              <div className="mt-2 text-xs uppercase tracking-[0.2em] text-[#8b9c8e] group-hover:text-[#cf6441] transition-colors" style={{ fontFamily: 'Cormorant Infant, serif' }}>
+                Adicionar ao calendário
+              </div>
             </div>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -471,6 +491,72 @@ export function WeddingRSVP() {
           </form>
         </div>
       </div>
+
+      {showCalendarOptions && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4" onClick={() => setShowCalendarOptions(false)} role="presentation">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="calendar-modal-title">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-[#8b9c8e]">Calendário</p>
+                <h3 id="calendar-modal-title" className="mt-2 text-2xl text-[#cf6441]" style={{ fontFamily: 'Cormorant Infant, serif' }}>
+                  Guardar a data
+                </h3>
+                <p className="mt-2 text-sm text-gray-600" style={{ fontFamily: 'Cormorant Infant, serif' }}>
+                  Escolha a opção que melhor funciona no seu dispositivo.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCalendarOptions(false)}
+                className="rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Fechar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              <button
+                type="button"
+                onClick={handleGoogleCalendar}
+                className="flex w-full items-start justify-between rounded-2xl border border-[#cf6441]/20 bg-[#fff7f3] px-4 py-4 text-left transition-transform hover:scale-[1.01] hover:border-[#cf6441]/40"
+              >
+                <div className="flex items-start gap-3">
+                  <CalendarPlus className="mt-1 h-5 w-5 text-[#cf6441]" />
+                  <div>
+                    <p className="font-medium text-[#cf6441]" style={{ fontFamily: 'Cormorant Infant, serif' }}>Google Calendar</p>
+                    <p className="text-sm text-gray-600" style={{ fontFamily: 'Cormorant Infant, serif' }}>
+                      Melhor opção para Android e browser no PC.
+                    </p>
+                  </div>
+                </div>
+                <ExternalLink className="mt-1 h-4 w-4 text-[#cf6441]" />
+              </button>
+
+              <a
+                href="/calendar/catarina-diogo-2026.ics"
+                onClick={() => setShowCalendarOptions(false)}
+                className="flex w-full items-start justify-between rounded-2xl border border-[#8b9c8e]/20 bg-[#f5f7f4] px-4 py-4 text-left transition-transform hover:scale-[1.01] hover:border-[#8b9c8e]/40"
+              >
+                <div className="flex items-start gap-3">
+                  <Download className="mt-1 h-5 w-5 text-[#8b9c8e]" />
+                  <div>
+                    <p className="font-medium text-[#5d7161]" style={{ fontFamily: 'Cormorant Infant, serif' }}>Apple Calendar / Outlook (.ics)</p>
+                    <p className="text-sm text-gray-600" style={{ fontFamily: 'Cormorant Infant, serif' }}>
+                      Melhor opção para iPhone, iPad, Mac e Outlook.
+                    </p>
+                  </div>
+                </div>
+                <ExternalLink className="mt-1 h-4 w-4 text-[#5d7161]" />
+              </a>
+            </div>
+
+            <div className="mt-5 whitespace-pre-line rounded-2xl bg-[#f5f1ed] px-4 py-3 text-sm text-gray-600" style={{ fontFamily: 'Cormorant Infant, serif' }}>
+              {'2 de outubro de 2026, 15h30\nQuinta da Eira, Bustelo, Penafiel, Porto'}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer with image */}
       <div className="relative w-full">

@@ -1,0 +1,15 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Catarina e Diogo//Wedding RSVP//PT
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:casamento-catarina-diogo-20261002@catarinaediogo26.pt
+DTSTAMP:20260322T000000Z
+DTSTART:20261002T143000Z
+DTEND:20261002T223000Z
+SUMMARY:Casamento Catarina & Diogo
+DESCRIPTION:Cerimonia e rececao do casamento de Catarina e Diogo.\nInicio as 15h30.
+LOCATION:Quinta da Eira\, Bustelo\, Penafiel\, Porto
+END:VEVENT
+END:VCALENDAR
