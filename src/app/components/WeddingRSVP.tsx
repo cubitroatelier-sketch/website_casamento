@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Send, CheckCircle, Heart, MapPin, Calendar, Lock, Gift, Phone, CalendarPlus, Download, ExternalLink, X } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -11,6 +11,35 @@ import footerImage from '../../assets/2a726c9bc882687d2c612204e0c10a04a2a0215a.p
 import headerImage from '../../assets/2acd5be44440207037c00d7daa9746f2532703f3.png';
 import cardFrame from '../../assets/9348f08a6f3db0357a823389e0b945021b60dbca.png';
 
+type CalendarOption = 'google' | 'ics';
+type CalendarPlatform = 'android' | 'ios' | 'macos' | 'desktop';
+
+const CALENDAR_ICS_URL = '/calendar/catarina-diogo-2026.ics';
+const CALENDAR_EVENT_TITLE = 'Casamento Catarina & Diogo';
+const CALENDAR_EVENT_LOCATION = 'Quinta da Eira, Bustelo, Penafiel, Porto';
+const CALENDAR_EVENT_DETAILS = 'Cerimonia e rececao do casamento de Catarina e Diogo. Inicio as 15h30.';
+const GOOGLE_CALENDAR_URL =
+  'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' +
+  encodeURIComponent(CALENDAR_EVENT_TITLE) +
+  '&dates=20261002T143000Z/20261002T223000Z' +
+  '&ctz=' + encodeURIComponent('Europe/Lisbon') +
+  '&location=' + encodeURIComponent(CALENDAR_EVENT_LOCATION) +
+  '&details=' + encodeURIComponent(CALENDAR_EVENT_DETAILS);
+
+function detectCalendarPlatform(): CalendarPlatform {
+  if (typeof navigator === 'undefined') return 'desktop';
+
+  const userAgent = navigator.userAgent || '';
+  const platform = navigator.platform || '';
+  const maxTouchPoints = navigator.maxTouchPoints || 0;
+  const isIpadOs = platform === 'MacIntel' && maxTouchPoints > 1;
+
+  if (/Android/i.test(userAgent)) return 'android';
+  if (/iPhone|iPad|iPod/i.test(userAgent) || isIpadOs) return 'ios';
+  if (/Mac/i.test(platform)) return 'macos';
+  return 'desktop';
+}
+
 export function WeddingRSVP() {
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,6 +48,31 @@ export function WeddingRSVP() {
   const [showIban, setShowIban] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
   const [showCalendarOptions, setShowCalendarOptions] = useState(false);
+  const calendarPlatform = detectCalendarPlatform();
+  const recommendedCalendarOption: CalendarOption =
+    calendarPlatform === 'ios' || calendarPlatform === 'macos' ? 'ics' : 'google';
+  const isAppleRecommended = recommendedCalendarOption === 'ics';
+  const isGoogleRecommended = recommendedCalendarOption === 'google';
+
+  useEffect(() => {
+    if (!showCalendarOptions) return;
+
+    const originalOverflow = document.body.style.overflow;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowCalendarOptions(false);
+      }
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [showCalendarOptions]);
+
   const [formData, setFormData] = useState({
     name: '',
     adultNames: [''],
@@ -49,16 +103,30 @@ export function WeddingRSVP() {
     window.dispatchEvent(new CustomEvent('openAdminLogin'));
   };
 
-  const googleCalendarUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' +
-    encodeURIComponent('Casamento Catarina & Diogo') +
-    '&dates=20261002T143000Z/20261002T223000Z' +
-    '&location=' + encodeURIComponent('Quinta da Eira, Bustelo, Penafiel, Porto') +
-    '&details=' + encodeURIComponent('Cerimonia e rececao do casamento de Catarina e Diogo. Inicio as 15h30.');
+  const handleCalendarAction = (option: CalendarOption) => {
+    if (option === 'google') {
+      window.open(GOOGLE_CALENDAR_URL, '_blank', 'noopener,noreferrer');
+    } else {
+      window.location.assign(CALENDAR_ICS_URL);
+    }
 
-  const handleGoogleCalendar = () => {
-    window.open(googleCalendarUrl, '_blank', 'noopener,noreferrer');
     setShowCalendarOptions(false);
   };
+
+  const googleCalendarCardClassName = `flex w-full items-start justify-between rounded-2xl border px-4 py-4 text-left transition-transform hover:scale-[1.01] ${
+    isGoogleRecommended ? 'border-[#cf6441]/40 bg-[#fff7f3]' : 'border-[#cf6441]/20 bg-white'
+  }`;
+  const appleCalendarCardClassName = `flex w-full items-start justify-between rounded-2xl border px-4 py-4 text-left transition-transform hover:scale-[1.01] ${
+    isAppleRecommended ? 'border-[#8b9c8e]/40 bg-[#f5f7f4]' : 'border-[#8b9c8e]/20 bg-white'
+  }`;
+  const googleCalendarDescription =
+    calendarPlatform === 'android'
+      ? 'Melhor opção para Android e Chrome.'
+      : 'Boa opção para browser no PC e para quem usa Google Calendar.';
+  const appleCalendarDescription =
+    calendarPlatform === 'ios' || calendarPlatform === 'macos'
+      ? 'Melhor opção para iPhone, iPad e Mac.'
+      : 'Ideal para Apple Calendar, Outlook e importação manual.';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -502,7 +570,7 @@ export function WeddingRSVP() {
                   Guardar a data
                 </h3>
                 <p className="mt-2 text-sm text-gray-600" style={{ fontFamily: 'Cormorant Infant, serif' }}>
-                  Escolha a opção que melhor funciona no seu dispositivo.
+                  A opção recomendada muda consoante o dispositivo. Se a primeira não abrir, use a alternativa.
                 </p>
               </div>
               <button
@@ -518,37 +586,51 @@ export function WeddingRSVP() {
             <div className="mt-6 space-y-3">
               <button
                 type="button"
-                onClick={handleGoogleCalendar}
-                className="flex w-full items-start justify-between rounded-2xl border border-[#cf6441]/20 bg-[#fff7f3] px-4 py-4 text-left transition-transform hover:scale-[1.01] hover:border-[#cf6441]/40"
+                onClick={() => handleCalendarAction('google')}
+                className={googleCalendarCardClassName}
               >
                 <div className="flex items-start gap-3">
                   <CalendarPlus className="mt-1 h-5 w-5 text-[#cf6441]" />
                   <div>
-                    <p className="font-medium text-[#cf6441]" style={{ fontFamily: 'Cormorant Infant, serif' }}>Google Calendar</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium text-[#cf6441]" style={{ fontFamily: 'Cormorant Infant, serif' }}>Google Calendar</p>
+                      {isGoogleRecommended && (
+                        <span className="rounded-full bg-[#cf6441] px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-white">
+                          Recomendado
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-600" style={{ fontFamily: 'Cormorant Infant, serif' }}>
-                      Melhor opção para Android e browser no PC.
+                      {googleCalendarDescription}
                     </p>
                   </div>
                 </div>
                 <ExternalLink className="mt-1 h-4 w-4 text-[#cf6441]" />
               </button>
 
-              <a
-                href="/calendar/catarina-diogo-2026.ics"
-                onClick={() => setShowCalendarOptions(false)}
-                className="flex w-full items-start justify-between rounded-2xl border border-[#8b9c8e]/20 bg-[#f5f7f4] px-4 py-4 text-left transition-transform hover:scale-[1.01] hover:border-[#8b9c8e]/40"
+              <button
+                type="button"
+                onClick={() => handleCalendarAction('ics')}
+                className={appleCalendarCardClassName}
               >
                 <div className="flex items-start gap-3">
                   <Download className="mt-1 h-5 w-5 text-[#8b9c8e]" />
                   <div>
-                    <p className="font-medium text-[#5d7161]" style={{ fontFamily: 'Cormorant Infant, serif' }}>Apple Calendar / Outlook (.ics)</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium text-[#5d7161]" style={{ fontFamily: 'Cormorant Infant, serif' }}>Apple Calendar / Outlook (.ics)</p>
+                      {isAppleRecommended && (
+                        <span className="rounded-full bg-[#8b9c8e] px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-white">
+                          Recomendado
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-600" style={{ fontFamily: 'Cormorant Infant, serif' }}>
-                      Melhor opção para iPhone, iPad, Mac e Outlook.
+                      {appleCalendarDescription}
                     </p>
                   </div>
                 </div>
                 <ExternalLink className="mt-1 h-4 w-4 text-[#5d7161]" />
-              </a>
+              </button>
             </div>
 
             <div className="mt-5 whitespace-pre-line rounded-2xl bg-[#f5f1ed] px-4 py-3 text-sm text-gray-600" style={{ fontFamily: 'Cormorant Infant, serif' }}>
