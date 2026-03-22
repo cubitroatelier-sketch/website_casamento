@@ -5,6 +5,30 @@ import { AdminLogin } from "@/app/components/AdminLogin";
 
 type ViewType = "rsvp" | "login" | "admin";
 
+function getStoredAdminAuth() {
+  try {
+    return window.sessionStorage.getItem("adminAuth") === "true";
+  } catch {
+    return false;
+  }
+}
+
+function setStoredAdminAuth() {
+  try {
+    window.sessionStorage.setItem("adminAuth", "true");
+  } catch {
+    // Safari/WebKit can block sessionStorage in private/restricted modes.
+  }
+}
+
+function clearStoredAdminAuth() {
+  try {
+    window.sessionStorage.removeItem("adminAuth");
+  } catch {
+    // Ignore storage cleanup failures; local state still logs the user out.
+  }
+}
+
 export default function App() {
   const [currentView, setCurrentView] =
     useState<ViewType>("rsvp");
@@ -12,8 +36,7 @@ export default function App() {
 
   useEffect(() => {
     // Verificar se já está autenticado
-    const auth = sessionStorage.getItem("adminAuth");
-    if (auth === "true") {
+    if (getStoredAdminAuth()) {
       setIsAuthenticated(true);
     }
 
@@ -43,12 +66,13 @@ export default function App() {
   }, []);
 
   const handleLogin = () => {
+    setStoredAdminAuth();
     setIsAuthenticated(true);
     setCurrentView("admin");
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem("adminAuth");
+    clearStoredAdminAuth();
     setIsAuthenticated(false);
     setCurrentView("rsvp");
   };

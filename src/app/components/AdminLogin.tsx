@@ -20,10 +20,8 @@ export function AdminLogin({ onLogin, onBack }: AdminLoginProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (password === ADMIN_PASSWORD) {
-      // Salvar autenticação no sessionStorage
-      sessionStorage.setItem('adminAuth', 'true');
       onLogin();
     } else {
       setError('Senha incorreta. Tente novamente.');

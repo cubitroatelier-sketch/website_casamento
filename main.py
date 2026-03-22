@@ -55,16 +55,22 @@ api = FastAPI(title="API RSVP Casamento")
 
 origins = [
     "http://catarinaediogo26.pt",
-
-    
+    "https://catarinaediogo26.pt",
+    "http://www.catarinaediogo26.pt",
+    "https://www.catarinaediogo26.pt",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
 api.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # Safari/WebKit is less forgiving with CORS preflights, so keep the
+    # allowed methods/headers explicit for the frontend requests we perform.
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key", "x-api-key"],
+    max_age=86400,
 )
 
 # -----------------------------
