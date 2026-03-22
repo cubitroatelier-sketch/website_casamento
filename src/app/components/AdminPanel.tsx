@@ -1,21 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Users,
   CheckCircle,
-  XCircle,
+  FileSpreadsheet,
+  LogOut,
   Mail,
   Phone,
   Trash2,
-  LogOut,
-  FileSpreadsheet
+  Users,
+  XCircle,
 } from 'lucide-react';
-
-import { Button } from '@/app/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
-import { Badge } from '@/app/components/ui/badge';
 import { utils, writeFile } from 'xlsx';
 
+import { Badge } from '@/app/components/ui/badge';
+import { Button } from '@/app/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { API_BASE_URL, getAdminAuthorizationHeader } from '@/app/lib/api';
+
 interface AdminPanelProps {
+  authToken: string;
   onBackClick: () => void;
 }
 
@@ -30,42 +32,68 @@ interface RSVP {
   absentNames?: string;
   adults: string;
   children?: string;
-  dietaryRestrictions?: string | {
-    vegetarian: boolean;
-    other: boolean;
-    otherText: string;
-  };
+  dietaryRestrictions?:
+    | string
+    | {
+        vegetarian: boolean;
+        other: boolean;
+        otherText: string;
+      };
   message?: string;
   timestamp: string;
   id: number;
 }
 
-export function AdminPanel({ onBackClick }: AdminPanelProps) {
+export function AdminPanel({ authToken, onBackClick }: AdminPanelProps) {
   const [rsvps, setRsvps] = useState<RSVP[]>([]);
   const [numSubmissoes, setNumSubmissoes] = useState(0);
   const [pessoasNv, setNumPessoasNv] = useState(0);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const adminHeaders = getAdminAuthorizationHeader(authToken);
+
+  const handleProtectedJsonResponse = async (response: Response) => {
+    if (response.status === 401) {
+      onBackClick();
+      throw new Error('Sessão expirada. Faça login novamente.');
+    }
+
+    if (!response.ok) {
+      throw new Error('Não foi possível comunicar com o servidor.');
+    }
+
+    return response.json();
+  };
 
   const carregarTudo = async () => {
     try {
+      setErrorMessage('');
       const [lista, stats] = await Promise.all([
-        fetch("https://backend-7ej1.onrender.com/submissoes").then(res => res.json()),
-        fetch("https://backend-7ej1.onrender.com/estatisticas").then(res => res.json())
+        fetch(API_BASE_URL + '/submissoes', {
+          headers: adminHeaders,
+        }).then(handleProtectedJsonResponse),
+        fetch(API_BASE_URL + '/estatisticas', {
+          headers: adminHeaders,
+        }).then(handleProtectedJsonResponse),
       ]);
+
       setRsvps(lista || []);
       setNumSubmissoes(stats.total_submissoes ?? 0);
       setNumPessoasNv(stats.pessoas_nao_vao ?? 0);
     } catch (err) {
-      console.error("Erro ao carregar dados:", err);
+      const message = err instanceof Error ? err.message : 'Erro ao carregar dados.';
+      setErrorMessage(message);
+      console.error('Erro ao carregar dados:', err);
     }
   };
 
   useEffect(() => {
-    carregarTudo();
-  }, []);
+    void carregarTudo();
+  }, [authToken]);
 
   const totalAdultos = rsvps
-    .filter(r => r.attendance === 'sim')
-    .reduce((acc, r) => acc + parseInt(r.adults || "0"), 0);
+    .filter((rsvp) => rsvp.attendance === 'sim')
+    .reduce((acc, rsvp) => acc + parseInt(rsvp.adults || '0', 10), 0);
 
   const formatDietaryRestrictions = (restrictions?: RSVP['dietaryRestrictions']) => {
     if (!restrictions) return '-';
@@ -73,33 +101,45 @@ export function AdminPanel({ onBackClick }: AdminPanelProps) {
 
     const items: string[] = [];
     if (restrictions.vegetarian) items.push('Vegetariano');
-    if (restrictions.other && restrictions.otherText)
+    if (restrictions.other && restrictions.otherText) {
       items.push(`Outro: ${restrictions.otherText}`);
+    }
 
     return items.length ? items.join(', ') : '-';
   };
 
-  // DELETE com x-api-key
   const deleteRSVP = async (id: number) => {
     if (!confirm('Tem certeza que deseja excluir esta confirmação?')) return;
 
-    await fetch(`https://backend-7ej1.onrender.com/submissoes?id=${id}`, {
-      method: "DELETE",
-      headers: { "x-api-key": "CHAVE_SECRETA" }
-    });
-
-    carregarTudo();
+    try {
+      const response = await fetch(API_BASE_URL + '/submissoes?id=' + id, {
+        method: 'DELETE',
+        headers: adminHeaders,
+      });
+      await handleProtectedJsonResponse(response);
+      await carregarTudo();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao apagar confirmação.';
+      setErrorMessage(message);
+      console.error('Erro ao apagar confirmação:', err);
+    }
   };
 
   const clearAll = async () => {
     if (!confirm('Tem certeza que deseja excluir TODAS as confirmações?')) return;
 
-    await fetch("https://backend-7ej1.onrender.com/submissoes?id=0", {
-      method: "DELETE",
-      headers: { "x-api-key": "CHAVE_SECRETA" }
-    });
-
-    carregarTudo();
+    try {
+      const response = await fetch(API_BASE_URL + '/submissoes?id=0', {
+        method: 'DELETE',
+        headers: adminHeaders,
+      });
+      await handleProtectedJsonResponse(response);
+      await carregarTudo();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao limpar confirmações.';
+      setErrorMessage(message);
+      console.error('Erro ao limpar confirmações:', err);
+    }
   };
 
   const exportToExcel = () => {
@@ -110,28 +150,27 @@ export function AdminPanel({ onBackClick }: AdminPanelProps) {
 
     const data = rsvps.map((rsvp, index) => ({
       '#': index + 1,
-      'Adultos': rsvp.adultNames?.join(', ') || rsvp.names?.join(', ') || '-',
+      Adultos: rsvp.adultNames?.join(', ') || rsvp.names?.join(', ') || '-',
       'Crianças': rsvp.childrenNames?.join(', ') || '-',
       'E-mail': rsvp.email,
-      'Telefone': rsvp.phone || '-',
-      'Status': rsvp.attendance === 'sim' ? 'Confirmado' : 'Não Comparecerá',
-      'Ausentes': rsvp.attendance === 'nao' ? rsvp.absentNames || '-' : '-',
+      Telefone: rsvp.phone || '-',
+      Status: rsvp.attendance === 'sim' ? 'Confirmado' : 'Não Comparecerá',
+      Ausentes: rsvp.attendance === 'nao' ? rsvp.absentNames || '-' : '-',
       'Nº Adultos': rsvp.attendance === 'sim' ? rsvp.adults : '-',
       'Restrições': formatDietaryRestrictions(rsvp.dietaryRestrictions),
-      'Mensagem': rsvp.message || '-',
-      'Data': new Date(rsvp.timestamp).toLocaleString('pt-BR')
+      Mensagem: rsvp.message || '-',
+      Data: new Date(rsvp.timestamp).toLocaleString('pt-BR'),
     }));
 
-    const ws = utils.json_to_sheet(data);
-    const wb = utils.book_new();
-    utils.book_append_sheet(wb, ws, 'Confirmações');
-    writeFile(wb, `confirmacoes.xlsx`);
+    const worksheet = utils.json_to_sheet(data);
+    const workbook = utils.book_new();
+    utils.book_append_sheet(workbook, worksheet, 'Confirmações');
+    writeFile(workbook, 'confirmacoes.xlsx');
   };
 
   return (
     <div className="min-h-screen p-4 md:p-8 bg-[#f5f1ed]">
       <div className="max-w-6xl mx-auto">
-        {/* Cabeçalho */}
         <div className="flex justify-between items-center mb-6">
           <Button variant="ghost" onClick={onBackClick}>
             <LogOut className="w-4 h-4 mr-2" /> Sair
@@ -146,7 +185,12 @@ export function AdminPanel({ onBackClick }: AdminPanelProps) {
           <p className="text-gray-600">Gerencie as confirmações de presença</p>
         </div>
 
-        {/* Estatísticas */}
+        {errorMessage && (
+          <Card className="mb-6 border-red-200 bg-red-50">
+            <CardContent className="pt-6 text-sm text-red-600">{errorMessage}</CardContent>
+          </Card>
+        )}
+
         <div className="grid md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <Card>
             <CardContent className="pt-6 flex justify-between items-center">
@@ -179,7 +223,6 @@ export function AdminPanel({ onBackClick }: AdminPanelProps) {
           </Card>
         </div>
 
-        {/* Ações */}
         {rsvps.length > 0 && (
           <div className="mb-6 flex justify-between items-center gap-4">
             <Button onClick={exportToExcel} variant="outline">
@@ -191,9 +234,8 @@ export function AdminPanel({ onBackClick }: AdminPanelProps) {
           </div>
         )}
 
-        {/* Lista completa de RSVPs */}
         <div className="space-y-4">
-          {rsvps.map(rsvp => (
+          {rsvps.map((rsvp) => (
             <Card key={rsvp.id}>
               <CardHeader>
                 <div className="flex justify-between items-start">
@@ -232,8 +274,7 @@ export function AdminPanel({ onBackClick }: AdminPanelProps) {
                     </div>
                   )}
 
-                  {/* Nomes dos convidados */}
-                  {(rsvp.attendance === 'sim' && (rsvp.adultNames || rsvp.childrenNames)) && (
+                  {rsvp.attendance === 'sim' && (rsvp.adultNames || rsvp.childrenNames) && (
                     <div className="mt-3">
                       <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Nomes dos Convidados</p>
                       <div className="space-y-2">
@@ -253,7 +294,6 @@ export function AdminPanel({ onBackClick }: AdminPanelProps) {
                     </div>
                   )}
 
-                  {/* Ausentes */}
                   {rsvp.attendance === 'nao' && rsvp.absentNames && (
                     <div className="mt-3 p-2 bg-gray-50 border border-gray-200 rounded">
                       <p className="text-xs font-semibold text-gray-500 mb-1">Não Comparecerão:</p>
@@ -261,14 +301,12 @@ export function AdminPanel({ onBackClick }: AdminPanelProps) {
                     </div>
                   )}
 
-                  {/* Restrições */}
                   {rsvp.attendance === 'sim' && formatDietaryRestrictions(rsvp.dietaryRestrictions) !== '-' && (
                     <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                       {formatDietaryRestrictions(rsvp.dietaryRestrictions)}
                     </div>
                   )}
 
-                  {/* Mensagem */}
                   {rsvp.message && (
                     <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm">
                       {rsvp.message}

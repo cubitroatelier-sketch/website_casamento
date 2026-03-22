@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Send, CheckCircle, Heart, MapPin, Calendar, Lock, Gift, Phone } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -6,12 +6,16 @@ import { Label } from '@/app/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/app/components/ui/radio-group';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Checkbox } from '@/app/components/ui/checkbox';
+import { API_BASE_URL } from '@/app/lib/api';
 import footerImage from '../../assets/2a726c9bc882687d2c612204e0c10a04a2a0215a.png';
 import headerImage from '../../assets/2acd5be44440207037c00d7daa9746f2532703f3.png';
 import cardFrame from '../../assets/9348f08a6f3db0357a823389e0b945021b60dbca.png';
 
 export function WeddingRSVP() {
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const submitLockRef = useRef(false);
   const [showIban, setShowIban] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
   const [formData, setFormData] = useState({
@@ -36,7 +40,8 @@ export function WeddingRSVP() {
       lactose: false,
       otherText: ''
     },
-    message: ''
+    message: '',
+    website: ''
   });
 
   const handleAdminAccess = () => {
@@ -45,6 +50,11 @@ export function WeddingRSVP() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (submitLockRef.current) return;
+
+    submitLockRef.current = true;
+    setIsSubmitting(true);
 
     const nome = formData.adultNames[0];
     const contacto = formData.phone;
@@ -87,25 +97,31 @@ export function WeddingRSVP() {
       bool_Confirmacao: confirmacao,
       int_Adultos: num_adultos,
       int_Criancas: num_children,
-      int_Bebes: num_babies
+      int_Bebes: num_babies,
+      str_Website: formData.website
     };
 
+    setSubmitError('');
+
     try {
-      const response = await fetch("https://backend-7ej1.onrender.com/submissoes", {
-        method: "POST",
+      const response = await fetch(API_BASE_URL + '/submissoes', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          "x-api-key": "CHAVE_SECRETA",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
         throw new Error("Erro ao submeter");
       }
-      const data = await response.json();
+      await response.json();
       setSubmitted(true);
     } catch (error) {
-      console.error("Erro:", error);
+      setSubmitError('Não foi possível enviar a confirmação. Tente novamente.');
+      console.error('Erro:', error);
+    } finally {
+      submitLockRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -263,6 +279,17 @@ export function WeddingRSVP() {
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="sr-only" aria-hidden="true">
+              <Label htmlFor="website">Website</Label>
+              <Input
+                id="website"
+                value={formData.website}
+                onChange={(e) => handleChange('website', e.target.value)}
+                tabIndex={-1}
+                autoComplete="off"
+              />
+            </div>
+
             {/* Nome Completo */}
             <div>
               <Label htmlFor="name" className="text-white mb-2 block text-lg" style={{ fontFamily: 'Cormorant Infant, serif' }}>
@@ -424,10 +451,22 @@ export function WeddingRSVP() {
                 )}
               </div>
 
+            {submitError && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {submitError}
+              </div>
+            )}
+
             {/* Submit Button */}
-            <Button type="submit" className="w-full bg-[#cf6441] hover:bg-[#b85637] text-white py-6 text-lg" size="lg" style={{ fontFamily: 'Cormorant Infant, serif' }}>
+            <Button
+              type="submit"
+              className="w-full bg-[#cf6441] hover:bg-[#b85637] text-white py-6 text-lg disabled:opacity-70"
+              size="lg"
+              style={{ fontFamily: 'Cormorant Infant, serif' }}
+              disabled={isSubmitting}
+            >
               <Send className="w-5 h-5 mr-2" />
-              Enviar Confirmação
+              {isSubmitting ? 'A enviar...' : 'Enviar Confirmação'}
             </Button>
           </form>
         </div>

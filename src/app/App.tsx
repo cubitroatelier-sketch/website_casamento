@@ -1,54 +1,34 @@
-import { useState, useEffect } from "react";
-import { WeddingRSVP } from "@/app/components/WeddingRSVP";
-import { AdminPanel } from "@/app/components/AdminPanel";
+import { useEffect, useState } from "react";
+
 import { AdminLogin } from "@/app/components/AdminLogin";
+import { AdminPanel } from "@/app/components/AdminPanel";
+import { WeddingRSVP } from "@/app/components/WeddingRSVP";
+import {
+  clearStoredAdminToken,
+  getStoredAdminToken,
+  storeAdminToken,
+} from "@/app/lib/adminSession";
 
 type ViewType = "rsvp" | "login" | "admin";
 
-function getStoredAdminAuth() {
-  try {
-    return window.sessionStorage.getItem("adminAuth") === "true";
-  } catch {
-    return false;
-  }
-}
-
-function setStoredAdminAuth() {
-  try {
-    window.sessionStorage.setItem("adminAuth", "true");
-  } catch {
-    // Safari/WebKit can block sessionStorage in private/restricted modes.
-  }
-}
-
-function clearStoredAdminAuth() {
-  try {
-    window.sessionStorage.removeItem("adminAuth");
-  } catch {
-    // Ignore storage cleanup failures; local state still logs the user out.
-  }
-}
-
 export default function App() {
-  const [currentView, setCurrentView] =
-    useState<ViewType>("rsvp");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentView, setCurrentView] = useState<ViewType>("rsvp");
+  const [authToken, setAuthToken] = useState<string | null>(null);
 
   useEffect(() => {
-    // Verificar se já está autenticado
-    if (getStoredAdminAuth()) {
-      setIsAuthenticated(true);
+    const storedToken = getStoredAdminToken();
+    if (storedToken) {
+      setAuthToken(storedToken);
+      setCurrentView("admin");
     }
 
-    // Listener para atalho de teclado (Ctrl+Shift+A)
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key === "A") {
-        e.preventDefault();
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.shiftKey && event.key === "A") {
+        event.preventDefault();
         setCurrentView("login");
       }
     };
 
-    // Listener para evento customizado do botão admin
     const handleAdminLogin = () => {
       setCurrentView("login");
     };
@@ -58,22 +38,19 @@ export default function App() {
 
     return () => {
       window.removeEventListener("keydown", handleKeyPress);
-      window.removeEventListener(
-        "openAdminLogin",
-        handleAdminLogin,
-      );
+      window.removeEventListener("openAdminLogin", handleAdminLogin);
     };
   }, []);
 
-  const handleLogin = () => {
-    setStoredAdminAuth();
-    setIsAuthenticated(true);
+  const handleLogin = (token: string) => {
+    storeAdminToken(token);
+    setAuthToken(token);
     setCurrentView("admin");
   };
 
   const handleLogout = () => {
-    clearStoredAdminAuth();
-    setIsAuthenticated(false);
+    clearStoredAdminToken();
+    setAuthToken(null);
     setCurrentView("rsvp");
   };
 
@@ -88,8 +65,8 @@ export default function App() {
         />
       )}
 
-      {currentView === "admin" && isAuthenticated && (
-        <AdminPanel onBackClick={handleLogout} />
+      {currentView === "admin" && authToken && (
+        <AdminPanel authToken={authToken} onBackClick={handleLogout} />
       )}
     </div>
   );
