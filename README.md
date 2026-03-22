@@ -125,12 +125,32 @@ Recomendação:
 
 ## Arranque rapido local
 
+### Linux / Ubuntu / WSL
+
 Se quiseres preparar tudo e arrancar com scripts:
 
 ```bash
 ./setup-local.sh
 ./start-local.sh
 ```
+
+### macOS
+
+Para macOS, usa os scripts dedicados:
+
+```bash
+./setup-local-macos.sh
+./start-local-macos.sh
+```
+
+O `setup-local-macos.sh` faz estas validacoes antes do setup local:
+- confirma que estas em macOS
+- confirma que tens `Xcode Command Line Tools`
+- confirma que tens `Homebrew`
+- instala `python3` com `brew` se faltar
+- instala `node`/`npm` com `brew` se faltar
+- depois executa o mesmo setup local usado nos outros ambientes
+
 
 O `start-local.sh` arranca:
 - backend em `http://127.0.0.1:8000`
@@ -152,6 +172,12 @@ Podes alterar estes valores ao arrancar:
 
 ```bash
 ADMIN_PASSWORD='outra-password' BACKEND_PORT=8001 FRONTEND_PORT=5174 ./start-local.sh
+```
+
+Em macOS, o arranque e equivalente:
+
+```bash
+ADMIN_PASSWORD='outra-password' BACKEND_PORT=8001 FRONTEND_PORT=5174 ./start-local-macos.sh
 ```
 
 ## Como correr o frontend localmente
