@@ -1,0 +1,24 @@
+sys_Submissoes
+ - int_SubmissaoID INTEGER PRIMARY KEY AUTOINCREMENT
+ - str_Nome
+ - str_Contacto
+ - bool_Confirmacao
+ - int_Adultos
+ - str_Alergias
+ - str_Nomes
+ - str_Ausentes
+ - str_Mensagem
+ - dt_Create
+
+-- Criar base de dados
+CREATE TABLE sys_Submissoes (int_SubmissaoID INTEGER PRIMARY KEY AUTOINCREMENT, str_Nome TEXT NOT NULL DEFAULT '', str_Contacto TEXT NOT NULL DEFAULT '', str_Email TEXT NOT NULL DEFAULT '', bool_Confirmacao INTEGER NOT NULL DEFAULT 0, int_Adultos INTEGER NOT NULL DEFAULT 0, int_Criancas INTEGER NOT NULL DEFAULT 0, int_Bebes INTEGER NOT NULL DEFAULT 0, str_Alergias TEXT NOT NULL DEFAULT '', str_Nomes TEX
+T NOT NULL DEFAULT '', str_Mensagem TEXT NOT NULL DEFAULT '', dt_Create DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP);
+
+-- Criar registo
+INSERT INTO sys_Submissoes (str_Nome, str_Contacto, bool_Confirmacao, int_Adultos, int_Criancas, int_Bebes, str_Alergias, str_Nomes, str_Mensagem) VALUES ('José', '915508517', 2, 1, 1, 'Sem glúten / Celíaco;Alergia a frutos secos;Alergia a panos de cozinha', 'José;Ivo;Carlos;Zé', '')
+
+-- Apagar registo
+DELETE FROM sys_Submissoes WHERE int_SubmissaoID = 1
+
+-- Apagar base de dados
+DROP TABLE sys_Submissoes;
