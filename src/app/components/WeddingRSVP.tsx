@@ -81,7 +81,6 @@ export function WeddingRSVP() {
     email: '',
     phone: '',
     attendance: '',
-    absentNames: '',
     totalGuests: '1',
     adults: '1',
     children: '0',
@@ -128,6 +127,13 @@ export function WeddingRSVP() {
       ? 'Melhor opção para iPhone, iPad e Mac.'
       : 'Ideal para Apple Calendar, Outlook e importação manual.';
 
+  const isAttending = formData.attendance === 'sim';
+  const isNotAttending = formData.attendance === 'nao';
+  const adultCount = parseInt(formData.adults) || 0;
+  const childCount = parseInt(formData.children) || 0;
+  const babyCount = parseInt(formData.babies) || 0;
+  const totalGuestCount = adultCount + childCount + babyCount;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -136,17 +142,16 @@ export function WeddingRSVP() {
     submitLockRef.current = true;
     setIsSubmitting(true);
 
-    const nome = formData.adultNames[0];
+    const nome = formData.adultNames[0].trim();
     const contacto = formData.phone;
     const email = formData.email;
-    const confirmacao = formData.attendance === 'sim';
-    const num_adultos = parseInt(formData.adults);
-    const num_children = parseInt(formData.children);
-    const num_babies = parseInt(formData.babies);
-    const nome_adultos = formData.adultNames;
-    const nome_criancas = formData.childrenNames;
-    const nome_bebes = formData.babyNames;
-    const pessoas_nv = nome + (formData.absentNames.length === 0 ? '' : ',' + formData.absentNames);
+    const confirmacao = isAttending;
+    const num_adultos = adultCount;
+    const num_children = confirmacao ? childCount : 0;
+    const num_babies = confirmacao ? babyCount : 0;
+    const nome_adultos = formData.adultNames.map((value) => value.trim()).filter(Boolean);
+    const nome_criancas = formData.childrenNames.map((value) => value.trim()).filter(Boolean);
+    const nome_bebes = formData.babyNames.map((value) => value.trim()).filter(Boolean);
     const alergias = formData.dietaryRestrictions;
     const mapaAlergias: Record<string, string> = {
       glutenFree: "Sem glúten / Celíaco",
@@ -165,7 +170,9 @@ export function WeddingRSVP() {
       .filter(Boolean)
       .join(", ");
     const mensagem = formData.message;
-    const nomes = (!confirmacao ? pessoas_nv : [...nome_adultos,...nome_criancas,...nome_bebes].join(','))
+    const nomes = confirmacao
+      ? [...nome_adultos, ...nome_criancas, ...nome_bebes].join(',')
+      : nome_adultos.join(',');
 
     const payload = {
       str_Nome: nome,
@@ -416,77 +423,95 @@ export function WeddingRSVP() {
               </RadioGroup>
             </div>
 
-            {/* Nomes de quem não pode estar presente */}
-            {formData.attendance === 'nao' && (
-              <div>
-                <Label htmlFor="absentNames" className="text-white mb-2 block text-lg" style={{ fontFamily: 'Cormorant Infant, serif' }}>
-                  Nome(s) das pessoa(s) que não podem estar presentes
-                </Label>
-                <Textarea id="absentNames" value={formData.absentNames} onChange={(e) => handleChange('absentNames', e.target.value)} placeholder="Separe os nomes por vírgulas, caso seja mais de uma pessoa" rows={3} className="bg-white/95 border-white/50 focus:border-white text-base" style={{ fontFamily: 'Cormorant Infant, serif' }} />
-              </div>
-            )}
-
-            {/* Campos que aparecem se confirmar presença */}
-            {formData.attendance === 'sim' && (
+            {/* Campos que aparecem depois da escolha */}
+            {(isAttending || isNotAttending) && (
               <>
-                {/* Nº de Pessoas */}
                 <div>
                   <Label className="text-white mb-3 block text-lg" style={{ fontFamily: 'Cormorant Infant, serif' }}>
-                    Nº de Pessoas por Convite *
+                    {isAttending ? 'Nº de Pessoas por Convite *' : 'Nº de Pessoas que não poderão estar presentes *'}
                   </Label>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <Label htmlFor="adults" className="text-white/80 text-base mb-1 block" style={{ fontFamily: 'Cormorant Infant, serif' }}>Convidados</Label>
-                      <Input id="adults" type="number" min="0" max="20" required value={formData.adults} onChange={(e) => handleChange('adults', e.target.value)} className="bg-white/95 border-white/50 focus:border-white text-base" style={{ fontFamily: 'Cormorant Infant, serif' }} />
+                      <Label htmlFor="adults" className="text-white/80 text-base mb-1 block" style={{ fontFamily: 'Cormorant Infant, serif' }}>
+                        {isAttending ? 'Convidados' : 'Pessoas'}
+                      </Label>
+                      <Input
+                        id="adults"
+                        type="number"
+                        min="1"
+                        max="20"
+                        required
+                        value={formData.adults}
+                        onChange={(e) => handleChange('adults', e.target.value)}
+                        className="bg-white/95 border-white/50 focus:border-white text-base"
+                        style={{ fontFamily: 'Cormorant Infant, serif' }}
+                      />
                     </div>
-
                   </div>
                   <p className="text-white/70 text-base mt-2" style={{ fontFamily: 'Cormorant Infant, serif' }}>
-                    Total: {parseInt(formData.adults) + parseInt(formData.children) + parseInt(formData.babies)} pessoa(s)
+                    Total: {isAttending ? totalGuestCount : adultCount} pessoa(s)
                   </p>
                 </div>
 
-                {/* Nomes adicionais */}
-                {(parseInt(formData.adults) + parseInt(formData.children) + parseInt(formData.babies)) > 1 && (
+                {adultCount > 1 && (
                   <div className="space-y-4">
-                    <Label className="text-white block text-lg" style={{ fontFamily: 'Cormorant Infant, serif' }}>Nomes dos Outros Convidados *</Label>
+                    <Label className="text-white block text-lg" style={{ fontFamily: 'Cormorant Infant, serif' }}>
+                      {isAttending ? 'Nomes dos Outros Convidados *' : 'Nomes das Outras Pessoas que não poderão estar presentes *'}
+                    </Label>
                     {formData.adultNames.slice(1).map((name, index) => (
                       <div key={index + 1}>
-                        <Label htmlFor={`name-${index + 1}`} className="text-white/80 text-base mb-1 block" style={{ fontFamily: 'Cormorant Infant, serif' }}>Pessoa {index + 2}</Label>
-                        <Input id={`name-${index + 1}`} required value={name} onChange={(e) => handleAdultNameChange(index + 1, e.target.value)} placeholder={`Nome completo`} className="bg-white/95 border-white/50 focus:border-white text-base" style={{ fontFamily: 'Cormorant Infant, serif' }} />
+                        <Label htmlFor={`name-${index + 1}`} className="text-white/80 text-base mb-1 block" style={{ fontFamily: 'Cormorant Infant, serif' }}>
+                          Pessoa {index + 2}
+                        </Label>
+                        <Input
+                          id={`name-${index + 1}`}
+                          required
+                          value={name}
+                          onChange={(e) => handleAdultNameChange(index + 1, e.target.value)}
+                          placeholder="Nome completo"
+                          className="bg-white/95 border-white/50 focus:border-white text-base"
+                          style={{ fontFamily: 'Cormorant Infant, serif' }}
+                        />
                       </div>
                     ))}
-                    {formData.childrenNames.map((name, index) => (
+                    {isAttending && formData.childrenNames.map((name, index) => (
                       <div key={`child-${index}`}>
                         <Label htmlFor={`child-${index}`} className="text-white/80 text-base mb-1 block" style={{ fontFamily: 'Cormorant Infant, serif' }}>Criança {index + 1}</Label>
-                        <Input id={`child-${index}`} required value={name} onChange={(e) => handleChildNameChange(index, e.target.value)} placeholder={`Nome completo`} className="bg-white/95 border-white/50 focus:border-white text-base" style={{ fontFamily: 'Cormorant Infant, serif' }} />
+                        <Input id={`child-${index}`} required value={name} onChange={(e) => handleChildNameChange(index, e.target.value)} placeholder="Nome completo" className="bg-white/95 border-white/50 focus:border-white text-base" style={{ fontFamily: 'Cormorant Infant, serif' }} />
                       </div>
                     ))}
-                    {formData.babyNames.map((name, index) => (
+                    {isAttending && formData.babyNames.map((name, index) => (
                       <div key={`baby-${index}`}>
                         <Label htmlFor={`baby-${index}`} className="text-white/80 text-base mb-1 block" style={{ fontFamily: 'Cormorant Infant, serif' }}>Bebé {index + 1}</Label>
-                        <Input id={`baby-${index}`} required value={name} onChange={(e) => handleBabyNameChange(index, e.target.value)} placeholder={`Nome completo`} className="bg-white/95 border-white/50 focus:border-white text-base" style={{ fontFamily: 'Cormorant Infant, serif' }} />
+                        <Input id={`baby-${index}`} required value={name} onChange={(e) => handleBabyNameChange(index, e.target.value)} placeholder="Nome completo" className="bg-white/95 border-white/50 focus:border-white text-base" style={{ fontFamily: 'Cormorant Infant, serif' }} />
                       </div>
                     ))}
                   </div>
                 )}
 
-                {/* Alergias */}
-                <div>
-                  <Label className="text-white mb-3 block text-lg" style={{ fontFamily: 'Cormorant Infant, serif' }}>Alergias e Restrições Alimentares</Label>
-                  <div className="space-y-3">
-                    <div className="grid md:grid-cols-2 gap-3">                     
-                      <div className="flex items-center space-x-2 bg-white/10 p-3 rounded">
-                        <Checkbox id="vegetarian" checked={formData.dietaryRestrictions.vegetarian} onCheckedChange={(value) => handleDietaryChange('vegetarian', value as boolean)} className="border-white data-[state=checked]:bg-white data-[state=checked]:text-[#839786]" />
-                        <Label htmlFor="vegetarian" className="cursor-pointer text-white text-base" style={{ fontFamily: 'Cormorant Infant, serif' }}>Vegetariano/Vegano</Label>
+                {isNotAttending && (
+                  <div className="rounded-2xl border border-white/20 bg-white/10 px-4 py-4 text-white/85" style={{ fontFamily: 'Cormorant Infant, serif' }}>
+                    Se o convite incluir mais do que uma pessoa, indique acima quem não poderá estar presente para registarmos a resposta corretamente.
+                  </div>
+                )}
+
+                {isAttending && (
+                  <div>
+                    <Label className="text-white mb-3 block text-lg" style={{ fontFamily: 'Cormorant Infant, serif' }}>Alergias e Restrições Alimentares</Label>
+                    <div className="space-y-3">
+                      <div className="grid md:grid-cols-2 gap-3">
+                        <div className="flex items-center space-x-2 bg-white/10 p-3 rounded">
+                          <Checkbox id="vegetarian" checked={formData.dietaryRestrictions.vegetarian} onCheckedChange={(value) => handleDietaryChange('vegetarian', value as boolean)} className="border-white data-[state=checked]:bg-white data-[state=checked]:text-[#839786]" />
+                          <Label htmlFor="vegetarian" className="cursor-pointer text-white text-base" style={{ fontFamily: 'Cormorant Infant, serif' }}>Vegetariano/Vegano</Label>
+                        </div>
+                      </div>
+                      <div className="bg-white/10 p-3 rounded space-y-2">
+                        <Label htmlFor="dietaryOther" className="text-white text-base block" style={{ fontFamily: 'Cormorant Infant, serif' }}>Alergias (especifique)</Label>
+                        <Input id="dietaryOther" value={formData.dietaryRestrictions.otherText} onChange={(e) => handleDietaryOtherTextChange(e.target.value)} placeholder="Especifique outras restrições alimentares" className="bg-white/95 border-white/50 focus:border-white text-base w-full" style={{ fontFamily: 'Cormorant, serif' }} />
                       </div>
                     </div>
-                    <div className="bg-white/10 p-3 rounded space-y-2">
-                      <Label htmlFor="dietaryOther" className="text-white text-base block" style={{ fontFamily: 'Cormorant Infant, serif' }}>Alergias (especifique)</Label>
-                      <Input id="dietaryOther" value={formData.dietaryRestrictions.otherText} onChange={(e) => handleDietaryOtherTextChange(e.target.value)} placeholder="Especifique outras restrições alimentares" className="bg-white/95 border-white/50 focus:border-white text-base w-full" style={{ fontFamily: 'Cormorant, serif' }} />
-                    </div>
                   </div>
-                </div>
+                )}
               </>
             )}
               {/* Botão Presente com IBAN na mesma linha, à esquerda */}
@@ -638,8 +663,8 @@ export function WeddingRSVP() {
       )}
 
       {/* Footer with image */}
-      <div className="w-full">
-        <img src={footerImage} alt="Footer decorativo" className="w-full h-auto object-cover" style={{ display: 'block' }} />
+      <div className="w-full overflow-hidden" style={{ aspectRatio: '7505 / 1360' }}>
+        <img src={footerImage} alt="Footer decorativo" className="h-full w-full object-cover object-center" style={{ display: 'block' }} />
       </div>
 
       <button
