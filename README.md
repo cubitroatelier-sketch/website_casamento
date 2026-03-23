@@ -127,12 +127,20 @@ Recomendação:
 
 ### Linux / Ubuntu / WSL
 
-Se quiseres preparar tudo e arrancar com scripts:
+Para Linux, usa os scripts dedicados:
 
 ```bash
-./setup-local.sh
-./start-local.sh
+./setup-local-linux.sh
+./start-local-linux.sh
 ```
+
+O `setup-local-linux.sh` faz estas validacoes antes do setup local:
+- confirma que estas em Linux
+- tenta instalar `python3`, `python3-venv`, `nodejs` e `npm` com `apt` quando necessario
+- valida que tens Node.js 18+
+- depois executa o setup comum em `./setup-local.sh`
+
+O `start-local-linux.sh` arranca o mesmo fluxo local comum de frontend + backend.
 
 ### macOS
 
@@ -150,6 +158,8 @@ O `setup-local-macos.sh` faz estas validacoes antes do setup local:
 - instala `python3` com `brew` se faltar
 - instala `node`/`npm` com `brew` se faltar
 - depois executa o mesmo setup local usado nos outros ambientes
+
+Os scripts `setup-local.sh` e `start-local.sh` continuam a existir como base comum usada pelos wrappers de Linux e macOS.
 
 
 O `start-local.sh` arranca:
@@ -174,7 +184,13 @@ Podes alterar estes valores ao arrancar:
 ADMIN_PASSWORD='outra-password' BACKEND_PORT=8001 FRONTEND_PORT=5174 ./start-local.sh
 ```
 
-Em macOS, o arranque e equivalente:
+Em Linux, o arranque equivalente e:
+
+```bash
+ADMIN_PASSWORD='outra-password' BACKEND_PORT=8001 FRONTEND_PORT=5174 ./start-local-linux.sh
+```
+
+Em macOS, o arranque equivalente e:
 
 ```bash
 ADMIN_PASSWORD='outra-password' BACKEND_PORT=8001 FRONTEND_PORT=5174 ./start-local-macos.sh
