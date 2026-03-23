@@ -638,15 +638,22 @@ export function WeddingRSVP() {
       )}
 
       {/* Footer with image */}
-      <div className="relative w-full">
+      <div className="w-full">
         <img src={footerImage} alt="Footer decorativo" className="w-full h-auto object-cover" style={{ display: 'block' }} />
-        <button onClick={handleAdminAccess} className="absolute bottom-6 right-6 w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-sm transition-all duration-300 flex items-center justify-center group" aria-label="Acesso administrativo">
-          <Heart className="w-5 h-5 text-[#cf6441] group-hover:scale-110 transition-transform" />
-          <Lock className="w-3 h-3 text-[#cf6441] absolute bottom-1 right-1 opacity-60" />
-        </button>
-
-
       </div>
+
+      <button
+        onClick={handleAdminAccess}
+        className="group fixed bottom-4 right-4 z-40 flex h-10 w-10 items-center justify-center rounded-full bg-white/35 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-white/55 sm:bottom-6 sm:right-6"
+        style={{
+          bottom: 'max(1rem, env(safe-area-inset-bottom))',
+          right: 'max(1rem, env(safe-area-inset-right))',
+        }}
+        aria-label="Acesso administrativo"
+      >
+        <Heart className="w-5 h-5 text-[#cf6441] transition-transform group-hover:scale-110" />
+        <Lock className="absolute bottom-1 right-1 w-3 h-3 text-[#cf6441] opacity-60" />
+      </button>
     </div>
   );
 }

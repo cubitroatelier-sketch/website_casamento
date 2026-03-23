@@ -19,6 +19,7 @@ import { API_BASE_URL, getAdminAuthorizationHeader } from '@/app/lib/api';
 
 interface AdminPanelProps {
   authToken: string;
+  onHomeClick: () => void;
   onBackClick: () => void;
 }
 
@@ -45,7 +46,7 @@ interface RSVP {
   id: number;
 }
 
-export function AdminPanel({ authToken, onBackClick }: AdminPanelProps) {
+export function AdminPanel({ authToken, onHomeClick, onBackClick }: AdminPanelProps) {
   const [rsvps, setRsvps] = useState<RSVP[]>([]);
   const [numSubmissoes, setNumSubmissoes] = useState(0);
   const [pessoasNv, setNumPessoasNv] = useState(0);
@@ -177,7 +178,10 @@ export function AdminPanel({ authToken, onBackClick }: AdminPanelProps) {
     <div className="min-h-screen p-4 md:p-8 bg-[#f5f1ed]">
       <div className="max-w-6xl mx-auto">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="ghost" onClick={onHomeClick} aria-label="Ir para a pagina principal">
+              <span aria-hidden="true" className="text-lg leading-none">🏡</span>
+            </Button>
             <Button variant="ghost" onClick={onBackClick}>
               <LogOut className="w-4 h-4 mr-2" /> Sair
             </Button>

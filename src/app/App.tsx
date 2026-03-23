@@ -25,12 +25,12 @@ export default function App() {
     const handleKeyPress = (event: KeyboardEvent) => {
       if (event.ctrlKey && event.shiftKey && event.key === "A") {
         event.preventDefault();
-        setCurrentView("login");
+        setCurrentView(authToken ? "admin" : "login");
       }
     };
 
     const handleAdminLogin = () => {
-      setCurrentView("login");
+      setCurrentView(authToken ? "admin" : "login");
     };
 
     window.addEventListener("keydown", handleKeyPress);
@@ -40,12 +40,16 @@ export default function App() {
       window.removeEventListener("keydown", handleKeyPress);
       window.removeEventListener("openAdminLogin", handleAdminLogin);
     };
-  }, []);
+  }, [authToken]);
 
   const handleLogin = (token: string) => {
     storeAdminToken(token);
     setAuthToken(token);
     setCurrentView("admin");
+  };
+
+  const handleGoHome = () => {
+    setCurrentView("rsvp");
   };
 
   const handleLogout = () => {
@@ -66,7 +70,11 @@ export default function App() {
       )}
 
       {currentView === "admin" && authToken && (
-        <AdminPanel authToken={authToken} onBackClick={handleLogout} />
+        <AdminPanel
+          authToken={authToken}
+          onHomeClick={handleGoHome}
+          onBackClick={handleLogout}
+        />
       )}
     </div>
   );
