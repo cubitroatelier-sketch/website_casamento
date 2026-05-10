@@ -20,7 +20,7 @@ if [ ! -d .venv ]; then
 fi
 
 echo "[setup-local] A instalar dependencias backend"
-.venv/bin/pip install fastapi uvicorn pydantic
+.venv/bin/pip install -r requirements.txt
 
 echo "[setup-local] A instalar dependencias frontend"
 npm install

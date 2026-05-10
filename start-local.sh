@@ -53,6 +53,11 @@ echo "Website local pronto:"
 echo "- Frontend: http://${FRONTEND_HOST}:${FRONTEND_PORT}"
 echo "- Backend:  http://${BACKEND_HOST}:${BACKEND_PORT}"
 echo "- Password admin local: ${ADMIN_PASSWORD}"
+if [ -n "${TURSO_DATABASE_URL:-}" ] && [ -n "${TURSO_AUTH_TOKEN:-}" ]; then
+  echo "- Base de dados: Turso"
+else
+  echo "- Base de dados: SQLite local"
+fi
 echo
 echo "Para parar os dois servidores, usa Ctrl+C nesta janela."
 

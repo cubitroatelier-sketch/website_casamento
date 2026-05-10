@@ -41,7 +41,8 @@ Ficheiros principais:
 
 ### Backend
 - FastAPI
-- SQLite em `data/wedding.db`
+- Turso/libSQL em produção, quando `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN` estão configurados
+- SQLite local em `data/wedding.db` como fallback de desenvolvimento
 
 Ficheiro principal:
 - `main.py`
@@ -111,6 +112,18 @@ Recomendação:
 - usa uma password forte
 - usa um segredo aleatório longo para `ADMIN_TOKEN_SECRET`
 - mantém `28800` se 8 horas de sessão fizer sentido
+- nunca coloques estas variáveis em ficheiros versionados no Git
+
+### Variáveis de ambiente da base de dados
+
+Em produção, define também:
+
+```bash
+TURSO_DATABASE_URL=libsql://...
+TURSO_AUTH_TOKEN=...
+```
+
+Se estas variáveis existirem, o backend usa Turso. Se não existirem, usa SQLite local em `data/wedding.db`.
 
 ## Endpoints da API
 
@@ -288,16 +301,54 @@ VITE_API_BASE_URL=http://127.0.0.1:8000 npm run dev -- --host 127.0.0.1 --port 5
 
 ## Base de dados
 
-A aplicação usa SQLite em:
+Em produção, a aplicação deve usar Turso/libSQL:
+
+```bash
+TURSO_DATABASE_URL=libsql://...
+TURSO_AUTH_TOKEN=...
+```
+
+Em desenvolvimento local, se essas variáveis não existirem, a aplicação usa SQLite em:
 
 ```bash
 data/wedding.db
 ```
 
 Notas importantes:
-- os dados ficam guardados nesse ficheiro
-- se o backend estiver numa plataforma com filesystem efémero, a base de dados pode perder-se em restart ou redeploy
-- para produção, confirma que a base de dados está em storage persistente
+- SQLite local serve para desenvolvimento, mas não deve ser a persistência de produção em Vercel/serverless
+- Turso guarda os dados fora do filesystem efémero do backend
+- `data/wedding.db` pode ser usado como origem para migrar dados antigos
+
+### Inicializar ou migrar dados para Turso
+
+Instala as dependências:
+
+```bash
+./setup-local.sh
+```
+
+Define as variáveis no terminal, sem as gravar em ficheiros:
+
+```bash
+export TURSO_DATABASE_URL='libsql://...'
+export TURSO_AUTH_TOKEN='...'
+```
+
+Em alternativa, corre o script sem exports e ele pede o URL e o token no terminal.
+
+Para criar a tabela no Turso sem importar dados locais:
+
+```bash
+.venv/bin/python scripts/migrate_sqlite_to_turso.py --init-only
+```
+
+Para criar a tabela e importar as linhas existentes em `data/wedding.db`:
+
+```bash
+.venv/bin/python scripts/migrate_sqlite_to_turso.py
+```
+
+O script usa `INSERT OR IGNORE`, por isso pode ser corrido novamente sem duplicar linhas com o mesmo `int_SubmissaoID`.
 
 ## Deploy
 
@@ -306,9 +357,9 @@ Pode ser servido como site estático após `npm run build`.
 
 ### Backend
 O backend precisa de:
-- acesso ao ficheiro SQLite
+- uma base de dados persistente, preferencialmente Turso em produção
 - variáveis de ambiente configuradas
-- persistência real se estiveres em produção
+- `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN` definidos no serviço de backend
 
 ### Render
 Se usares Render para o backend:
@@ -317,7 +368,22 @@ Se usares Render para o backend:
 3. cria `ADMIN_PASSWORD`
 4. cria `ADMIN_TOKEN_SECRET`
 5. cria `ADMIN_TOKEN_TTL_SECONDS`
-6. faz deploy
+6. cria `TURSO_DATABASE_URL`
+7. cria `TURSO_AUTH_TOKEN`
+8. faz deploy
+
+### Vercel
+Se usares Vercel para o backend:
+1. abre o projeto do backend
+2. vai a `Settings` > `Environment Variables`
+3. cria `ADMIN_PASSWORD`
+4. cria `ADMIN_TOKEN_SECRET`
+5. cria `ADMIN_TOKEN_TTL_SECONDS`
+6. cria `TURSO_DATABASE_URL`
+7. cria `TURSO_AUTH_TOKEN`
+8. faz novo deploy do backend
+
+Importante: SQLite local não é persistente em serverless. Usa Turso ou outra base remota.
 
 ## Safari / WebKit
 
@@ -359,6 +425,8 @@ Backend:
 export ADMIN_PASSWORD='uma-password-forte'
 export ADMIN_TOKEN_SECRET='um-segredo-longo-e-aleatorio'
 export ADMIN_TOKEN_TTL_SECONDS='28800'
+export TURSO_DATABASE_URL='libsql://...'
+export TURSO_AUTH_TOKEN='...'
 uvicorn main:api --host 0.0.0.0 --port 8000 --reload
 ```
 

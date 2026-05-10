@@ -7,7 +7,7 @@ import os
 import secrets
 import sqlite3 as sqlite
 import time
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Sequence, Union
 
 from fastapi import Body, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -90,8 +90,96 @@ api.add_middleware(
 )
 
 
+CREATE_SUBMISSOES_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS sys_Submissoes (
+    int_SubmissaoID INTEGER PRIMARY KEY AUTOINCREMENT,
+    str_Nome TEXT NOT NULL DEFAULT '',
+    str_Contacto TEXT NOT NULL DEFAULT '',
+    str_Email TEXT NOT NULL DEFAULT '',
+    bool_Confirmacao INTEGER NOT NULL DEFAULT 0,
+    int_Adultos INTEGER NOT NULL DEFAULT 0,
+    int_Criancas INTEGER NOT NULL DEFAULT 0,
+    int_Bebes INTEGER NOT NULL DEFAULT 0,
+    str_Alergias TEXT NOT NULL DEFAULT '',
+    str_Nomes TEXT NOT NULL DEFAULT '',
+    str_Mensagem TEXT NOT NULL DEFAULT '',
+    dt_Create DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+)
+"""
+
+
+def get_turso_config() -> Optional[tuple[str, str]]:
+    database_url = os.getenv("TURSO_DATABASE_URL")
+    auth_token = os.getenv("TURSO_AUTH_TOKEN")
+
+    if bool(database_url) != bool(auth_token):
+        raise RuntimeError("Configuração Turso incompleta: define TURSO_DATABASE_URL e TURSO_AUTH_TOKEN")
+
+    if database_url and auth_token:
+        return database_url, auth_token
+
+    return None
+
+
 def get_db():
-    return sqlite.connect("./data/wedding.db", check_same_thread=False)
+    turso_config = get_turso_config()
+    if turso_config:
+        try:
+            import libsql
+        except ImportError as exc:
+            raise RuntimeError("Dependência em falta: instala o pacote 'libsql'") from exc
+
+        database_url, auth_token = turso_config
+        return libsql.connect(
+            database=database_url,
+            auth_token=auth_token,
+        )
+
+    db_path = os.getenv("DB_PATH", "./data/wedding.db")
+    db_dir = os.path.dirname(db_path)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+    return sqlite.connect(db_path, check_same_thread=False)
+
+
+def close_db(con: Any) -> None:
+    close = getattr(con, "close", None)
+    if callable(close):
+        close()
+
+
+def execute_write(sql: str, params: Sequence[Any] = ()) -> None:
+    con = get_db()
+    try:
+        con.execute(sql, params)
+        con.commit()
+    finally:
+        close_db(con)
+
+
+def fetch_one(sql: str, params: Sequence[Any] = ()):
+    con = get_db()
+    try:
+        return con.execute(sql, params).fetchone()
+    finally:
+        close_db(con)
+
+
+def fetch_all(sql: str, params: Sequence[Any] = ()):
+    con = get_db()
+    try:
+        return con.execute(sql, params).fetchall()
+    finally:
+        close_db(con)
+
+
+def init_db() -> None:
+    execute_write(CREATE_SUBMISSOES_TABLE_SQL)
+
+
+@api.on_event("startup")
+def startup_event():
+    init_db()
 
 
 def get_required_env(name: str) -> str:
@@ -187,40 +275,38 @@ async def post_submissao(submissao: Submissao):
     if submissao.str_Website.strip():
         raise HTTPException(status_code=400, detail="Submissão inválida")
 
-    with get_db() as con:
-        cur = con.cursor()
-        cur.execute(
-            """
-            INSERT INTO sys_Submissoes
-            (
-                str_Nome,
-                str_Contacto,
-                str_Email,
-                bool_Confirmacao,
-                int_Adultos,
-                int_Criancas,
-                int_Bebes,
-                str_Alergias,
-                str_Nomes,
-                str_Mensagem,
-                dt_Create
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                submissao.str_Nome,
-                submissao.str_Contacto,
-                submissao.str_Email,
-                int(submissao.bool_Confirmacao),
-                submissao.int_Adultos,
-                submissao.int_Criancas,
-                submissao.int_Bebes,
-                submissao.str_Alergias,
-                submissao.str_Nomes,
-                submissao.str_Mensagem,
-                datetime.datetime.utcnow().isoformat(),
-            ),
+    execute_write(
+        """
+        INSERT INTO sys_Submissoes
+        (
+            str_Nome,
+            str_Contacto,
+            str_Email,
+            bool_Confirmacao,
+            int_Adultos,
+            int_Criancas,
+            int_Bebes,
+            str_Alergias,
+            str_Nomes,
+            str_Mensagem,
+            dt_Create
         )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            submissao.str_Nome,
+            submissao.str_Contacto,
+            submissao.str_Email,
+            int(submissao.bool_Confirmacao),
+            submissao.int_Adultos,
+            submissao.int_Criancas,
+            submissao.int_Bebes,
+            submissao.str_Alergias,
+            submissao.str_Nomes,
+            submissao.str_Mensagem,
+            datetime.datetime.utcnow().isoformat(),
+        ),
+    )
     return {"message": "Submissão guardada com sucesso"}
 
 
@@ -229,35 +315,30 @@ async def get_estatisticas(authorization: Optional[str] = Header(None)):
     require_admin(authorization)
 
     estatisticas = {}
-    with get_db() as con:
-        cur = con.cursor()
+    total, confirmados, nao_confirmados = fetch_one(
+        """
+        SELECT
+            COUNT(int_SubmissaoID),
+            COALESCE(SUM(CASE WHEN bool_Confirmacao = 1 THEN 1 ELSE 0 END),0),
+            COALESCE(SUM(CASE WHEN bool_Confirmacao = 0 THEN 1 ELSE 0 END),0)
+        FROM sys_Submissoes
+        """
+    )
 
-        cur.execute(
-            """
-            SELECT
-                COUNT(int_SubmissaoID),
-                COALESCE(SUM(CASE WHEN bool_Confirmacao = 1 THEN 1 ELSE 0 END),0),
-                COALESCE(SUM(CASE WHEN bool_Confirmacao = 0 THEN 1 ELSE 0 END),0)
-            FROM sys_Submissoes
-            """
-        )
-        total, confirmados, nao_confirmados = cur.fetchone()
+    estatisticas["total_submissoes"] = total
+    estatisticas["confirmados"] = confirmados
+    estatisticas["nao_confirmados_linhas"] = nao_confirmados
 
-        estatisticas["total_submissoes"] = total
-        estatisticas["confirmados"] = confirmados
-        estatisticas["nao_confirmados_linhas"] = nao_confirmados
-
-        cur.execute(
-            """
-            SELECT str_Nomes FROM sys_Submissoes WHERE bool_Confirmacao = 0
-            """
-        )
-        rows = cur.fetchall()
-        pessoas_nv = 0
-        for row in rows:
-            nomes = row[0] or ""
-            pessoas_nv += len([n.strip() for n in nomes.split(",") if n.strip()])
-        estatisticas["pessoas_nao_vao"] = pessoas_nv
+    rows = fetch_all(
+        """
+        SELECT str_Nomes FROM sys_Submissoes WHERE bool_Confirmacao = 0
+        """
+    )
+    pessoas_nv = 0
+    for row in rows:
+        nomes = row[0] or ""
+        pessoas_nv += len([n.strip() for n in nomes.split(",") if n.strip()])
+    estatisticas["pessoas_nao_vao"] = pessoas_nv
 
     return estatisticas
 
@@ -267,70 +348,67 @@ async def get_submissoes(authorization: Optional[str] = Header(None)):
     require_admin(authorization)
 
     rsvps = []
-    with get_db() as con:
-        cur = con.cursor()
-        cur.execute(
-            """
-            SELECT
-                str_Nomes,
-                str_Email,
-                str_Contacto,
-                bool_Confirmacao,
-                int_Adultos,
-                int_Criancas,
-                int_Bebes,
-                str_Alergias,
-                str_Mensagem,
-                dt_Create,
-                int_SubmissaoID
-            FROM sys_Submissoes
-            ORDER BY dt_Create DESC
-            """
+    rows = fetch_all(
+        """
+        SELECT
+            str_Nomes,
+            str_Email,
+            str_Contacto,
+            bool_Confirmacao,
+            int_Adultos,
+            int_Criancas,
+            int_Bebes,
+            str_Alergias,
+            str_Mensagem,
+            dt_Create,
+            int_SubmissaoID
+        FROM sys_Submissoes
+        ORDER BY dt_Create DESC
+        """
+    )
+
+    for row in rows:
+        nomes = row[0] or ""
+        attendance = "sim" if row[3] else "nao"
+
+        all_names = [n.strip() for n in nomes.split(",") if n.strip()]
+        adults = min(row[4], len(all_names)) if row[4] else 0
+        children = min(row[5], len(all_names) - adults) if row[5] else 0
+        babies = min(row[6], len(all_names) - adults - children) if row[6] else 0
+
+        adultNames = all_names[:adults]
+        childrenNames = all_names[adults:adults + children]
+        babyNames = all_names[adults + children:adults + children + babies]
+
+        try:
+            dietary = json.loads(row[7]) if row[7] else ""
+        except (ValueError, TypeError):
+            dietary = row[7]
+
+        try:
+            timestamp = datetime.datetime.fromisoformat(row[9]).isoformat()
+        except ValueError:
+            timestamp = str(row[9])
+
+        rsvps.append(
+            {
+                "adultNames": adultNames,
+                "childrenNames": childrenNames,
+                "babyNames": babyNames,
+                "names": all_names,
+                "email": row[1],
+                "phone": row[2],
+                "attendance": attendance,
+                "absentNames": ",".join(all_names) if attendance == "nao" else None,
+                "adults": str(row[4]),
+                "children": str(row[5]),
+                "babies": str(row[6]),
+                "dietaryRestrictions": dietary,
+                "message": row[8] or "",
+                "timestamp": timestamp,
+                "id": row[10],
+            }
         )
-        rows = cur.fetchall()
-
-        for row in rows:
-            nomes = row[0] or ""
-            attendance = "sim" if row[3] else "nao"
-
-            all_names = [n.strip() for n in nomes.split(",") if n.strip()]
-            adults = min(row[4], len(all_names)) if row[4] else 0
-            children = min(row[5], len(all_names) - adults) if row[5] else 0
-            babies = min(row[6], len(all_names) - adults - children) if row[6] else 0
-
-            adultNames = all_names[:adults]
-            childrenNames = all_names[adults:adults + children]
-            babyNames = all_names[adults + children:adults + children + babies]
-
-            try:
-                dietary = json.loads(row[7]) if row[7] else ""
-            except (ValueError, TypeError):
-                dietary = row[7]
-
-            try:
-                timestamp = datetime.datetime.fromisoformat(row[9]).isoformat()
-            except ValueError:
-                timestamp = str(row[9])
-
-            rsvps.append(
-                {
-                    "adultNames": adultNames,
-                    "childrenNames": childrenNames,
-                    "babyNames": babyNames,
-                    "names": all_names,
-                    "email": row[1],
-                    "phone": row[2],
-                    "attendance": attendance,
-                    "absentNames": ",".join(all_names) if attendance == "nao" else None,
-                    "adults": str(row[4]),
-                    "children": str(row[5]),
-                    "babies": str(row[6]),
-                    "dietaryRestrictions": dietary,
-                    "message": row[8] or "",
-                    "timestamp": timestamp,
-                    "id": row[10],
-                }
-            )
     return rsvps
 
 
@@ -347,11 +425,8 @@ async def delete_submissoes(
     elif id is None:
         raise HTTPException(status_code=400, detail="É necessário fornecer 'id'")
 
-    with get_db() as con:
-        cur = con.cursor()
-        if id == 0:
-            cur.execute("DELETE FROM sys_Submissoes")
-        else:
-            cur.execute("DELETE FROM sys_Submissoes WHERE int_SubmissaoID = ?", (id,))
-        con.commit()
+    if id == 0:
+        execute_write("DELETE FROM sys_Submissoes")
+    else:
+        execute_write("DELETE FROM sys_Submissoes WHERE int_SubmissaoID = ?", (id,))
     return {"message": "Submissão(s) apagada(s) com sucesso"}

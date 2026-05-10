@@ -41,18 +41,4 @@ if ! command -v npm >/dev/null 2>&1; then
   exit 1
 fi
 
-if [ ! -d .venv ]; then
-  echo "[setup-local] A criar ambiente virtual Python em .venv"
-  python3 -m venv .venv
-fi
-
-echo "[setup-local] A instalar dependencias backend"
-.venv/bin/pip install fastapi uvicorn pydantic
-
-echo "[setup-local] A instalar dependencias frontend"
-npm install
-
-echo
-echo "Setup local concluido."
-echo "Para arrancar tudo: ./start-local.sh"
-
+exec ./setup-local.sh
